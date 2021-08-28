@@ -152,6 +152,8 @@ public class ULID {
 			(byte) 0xff, (byte) 0xff, (byte) 0xff, (byte) 0xff //
 	};
 
+	private static long lastTime;
+
 	/**
 	 * Generate random ULID string using {@link java.util.Random} instance.
 	 * 
@@ -161,7 +163,7 @@ public class ULID {
 		byte[] entropy = new byte[10];
 		Random random = new Random();
 		random.nextBytes(entropy);
-		return generate(System.currentTimeMillis(), entropy);
+		return generate(getMonotonicTimeMillis(), entropy);
 	}
 
 	/**
@@ -175,7 +177,19 @@ public class ULID {
 	public static String random(Random random) {
 		byte[] entropy = new byte[10];
 		random.nextBytes(entropy);
-		return generate(System.currentTimeMillis(), entropy);
+		return generate(getMonotonicTimeMillis(), entropy);
+	}
+
+	/**
+	 * Generate a monotonic time unit if the last time is equal to now
+	 *
+	 * @return monotonic current time millis
+	 */
+	private static synchronized long getMonotonicTimeMillis() {
+		long now = System.currentTimeMillis();
+		return (now > lastTime)
+				? lastTime = now
+				: ++lastTime;
 	}
 
 	/**

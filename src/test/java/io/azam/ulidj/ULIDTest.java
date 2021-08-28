@@ -23,7 +23,11 @@
  */
 package io.azam.ulidj;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
+import java.util.concurrent.*;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -217,6 +221,45 @@ public class ULIDTest {
 			if (!params.isIllegalArgument) {
 				Assert.assertArrayEquals("ULID entropy is different", params.entropy, ULID.getEntropy(params.value));
 			}
+		}
+	}
+
+	@Test
+	public void testMonotonicity() throws InterruptedException, ExecutionException {
+		int numRandomULIDs = 100000;
+		ExecutorService executorService = Executors.newCachedThreadPool();
+		try {
+			// Callable to generate random ULID
+			Callable<String> callable = new Callable<String>() {
+				@Override
+				public String call() throws Exception {
+					return ULID.random();
+				}
+			};
+
+			// List of Callables to invoke in executor
+			List<Callable<String>> callList = new ArrayList<>();
+			for (int i = 0; i < numRandomULIDs; i++) {
+				callList.add(callable);
+			}
+
+			// Collect all the futures from invokeAll
+			List<Future<String>> futures = executorService.invokeAll(callList);
+
+			// Collect all the timestamps for each future
+			List<Long> longs = new ArrayList<>();
+			for (int i = 0; i < numRandomULIDs; i++) {
+				longs.add(ULID.getTimestamp(futures.get(i).get()));
+			}
+			// Assert longs List size equal to numRandomULIDs
+			Assert.assertEquals(numRandomULIDs, longs.size());
+
+			// Assert using HashSet that all the timestamps are unique.
+			// If duplicates existed, then the HashSet would have smaller size.
+			Assert.assertEquals(longs.size(), new HashSet<>(longs).size());
+
+		} finally {
+			executorService.shutdownNow();
 		}
 	}
 }
